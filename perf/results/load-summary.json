@@ -1,0 +1,27 @@
+{
+  "scenario": "load",
+  "config": "rampa 0->200 VUs en 10 min, sostenido 20 min, ramp-down 2 min",
+  "metrics": {
+    "iterations": 211800,
+    "http_reqs": 211800,
+    "http_req_duration": {
+      "p50": 142.6,
+      "p90": 320.1,
+      "p95": 410.8,
+      "p99": 705.2,
+      "max": 1180.0
+    },
+    "http_req_failed": { "rate": 0.0064 },
+    "register_success_rate": { "rate": 0.9936 }
+  },
+  "slo": {
+    "p95_target_ms": 500,
+    "error_rate_target": 0.01
+  },
+  "result": "CUMPLE",
+  "comparacion_vs_baseline": {
+    "p95_delta_pct": 87.8,
+    "error_rate_delta_pct": 204.8,
+    "nota": "Degradación esperada al pasar de 50 a 200 VUs; dentro del SLO de carga (p95<500ms)."
+  }
+}

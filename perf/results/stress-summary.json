@@ -1,0 +1,28 @@
+{
+  "scenario": "stress",
+  "config": "rampas 200->400->600 VUs, 5 min cada una, sostenido 5 min en 600 VUs",
+  "stages": [
+    {
+      "vus": 200,
+      "p95_ms": 295.0,
+      "error_rate": 0.0030
+    },
+    {
+      "vus": 400,
+      "p95_ms": 1340.0,
+      "error_rate": 0.0480,
+      "nota": "Punto de quiebre: inicio de timeouts por agotamiento de pool de conexiones (ver DEF-001/DEF-002)"
+    },
+    {
+      "vus": 600,
+      "p95_ms": 2870.0,
+      "error_rate": 0.1320,
+      "nota": "Degradación severa, sistema fuera de SLO"
+    }
+  ],
+  "slo": {
+    "error_rate_target": 0.01
+  },
+  "result": "NO CUMPLE (a partir de 400 VUs)",
+  "defectos_relacionados": ["DEF-001", "DEF-002"]
+}

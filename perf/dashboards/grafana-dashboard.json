@@ -1,0 +1,49 @@
+{
+  "title": "Perf Tests - Registro de Votantes",
+  "description": "Dashboard de referencia para correlacionar métricas de k6 con JVM/HikariCP/DB durante las pruebas de carga",
+  "panels": [
+    {
+      "title": "p95 / p99 http_req_duration (k6)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "histogram_quantile(0.95, rate(k6_http_req_duration_seconds_bucket[1m]))", "legend": "p95" },
+        { "expr": "histogram_quantile(0.99, rate(k6_http_req_duration_seconds_bucket[1m]))", "legend": "p99" }
+      ]
+    },
+    {
+      "title": "Error rate (k6)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(k6_http_req_failed_total[1m])", "legend": "error rate" }
+      ]
+    },
+    {
+      "title": "JVM Heap Usado",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "jvm_memory_used_bytes{area=\"heap\"}", "legend": "heap used" }
+      ]
+    },
+    {
+      "title": "HikariCP - Conexiones Activas / En Espera",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "hikaricp_connections_active", "legend": "activas" },
+        { "expr": "hikaricp_connections_pending", "legend": "en espera" }
+      ]
+    },
+    {
+      "title": "CPU Uso (proceso)",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "process_cpu_usage", "legend": "cpu" }
+      ]
+    }
+  ],
+  "nota": "Plantilla de referencia. Ajustar nombres de métricas según el exporter/Micrometer configurado en el servicio Spring Boot."
+}

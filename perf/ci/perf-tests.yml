@@ -1,0 +1,96 @@
+name: perf-tests
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: 'Escenario adicional a ejecutar on-demand (stress | soak | spike)'
+        required: false
+        default: ''
+
+jobs:
+  smoke-and-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Levantar servicio (Spring Boot)
+        run: |
+          mvn -q -DskipTests spring-boot:run &
+          sleep 30
+
+      - name: Smoke test
+        run: |
+          k6 run -e BASE_URL=http://localhost:8080 perf/scripts/smoke_k6.js
+
+      - name: Baseline (gate de calidad)
+        run: |
+          mkdir -p perf/results
+          k6 run \
+            -e BASE_URL=http://localhost:8080 \
+            -e SCENARIO=baseline \
+            -e DATA_FILE=perf/data/voter.csv \
+            perf/scripts/register_voter_k6.js \
+            -o json=perf/results/baseline.json
+
+      - name: Carga (gate de calidad)
+        run: |
+          k6 run \
+            -e BASE_URL=http://localhost:8080 \
+            -e SCENARIO=load \
+            -e DATA_FILE=perf/data/voter.csv \
+            perf/scripts/register_voter_k6.js \
+            -o json=perf/results/load.json
+
+      - name: Publicar artefactos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results
+          path: perf/results/**
+
+  stress-on-demand:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.scenario == 'stress'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Levantar servicio
+        run: |
+          mvn -q -DskipTests spring-boot:run &
+          sleep 30
+
+      - name: Estrés
+        run: |
+          mkdir -p perf/results
+          k6 run \
+            -e BASE_URL=http://localhost:8080 \
+            -e SCENARIO=stress \
+            -e DATA_FILE=perf/data/voter.csv \
+            perf/scripts/register_voter_k6.js \
+            -o json=perf/results/stress.json
+
+      - name: Publicar artefactos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results-stress
+          path: perf/results/**

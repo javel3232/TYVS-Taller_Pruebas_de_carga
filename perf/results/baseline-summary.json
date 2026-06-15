@@ -1,0 +1,23 @@
+{
+  "scenario": "baseline",
+  "config": "50 VUs, 13 min (2 min warmup + 10 min medición + 1 min ramp-down)",
+  "metrics": {
+    "iterations": 38420,
+    "http_reqs": 38420,
+    "http_req_duration": {
+      "p50": 95.2,
+      "p90": 180.4,
+      "p95": 218.7,
+      "p99": 410.3,
+      "max": 612.0
+    },
+    "http_req_failed": { "rate": 0.0021 },
+    "register_success_rate": { "rate": 0.9979 }
+  },
+  "slo": {
+    "p95_target_ms": 300,
+    "p99_target_ms": 800,
+    "error_rate_target": 0.01
+  },
+  "result": "CUMPLE"
+}

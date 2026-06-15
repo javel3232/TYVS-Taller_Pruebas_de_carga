@@ -1,131 +1,73 @@
-# Registro de Defectos -- Pruebas de Carga y Rendimiento
+# Registro de Defectos – Pruebas de Carga y Rendimiento
 
-Curso: Testing y Validación de Software\
-Proyecto: Pruebas de Carga y Rendimiento\
-Equipo: \[Nombre del equipo\]\
-Fecha: \[Fecha\]
+| ID | Título | Severidad | Escenario donde se detectó | Estado |
+|----|--------|-----------|------------------------------|--------|
+| DEF-001 | Degradación de p95 por agotamiento del pool de conexiones HikariCP bajo 400+ VUs | Alta | Estrés | Abierto |
+| DEF-002 | Incremento de `http_req_failed` (timeouts) a partir de 300 VUs en `/register` | Media | Estrés | Abierto |
+| DEF-003 | Posible fuga de memoria leve (crecimiento sostenido de heap) durante 2h a 120 VUs | Media | Soak | En análisis |
 
-------------------------------------------------------------------------
+---
 
-## Introducción
+## DEF-001: Agotamiento del pool de conexiones HikariCP
 
-Este documento recopila los defectos identificados durante la ejecución
-de pruebas de rendimiento (Baseline, Load, Stress, Spike, Soak y
-Regresión).\
-Cada defecto se documenta para garantizar trazabilidad, análisis técnico
-y propuesta de mejora.
+**Severidad:** Alta
+**Escenario:** Estrés (rampa 200→600 VUs)
+**Estado:** Abierto
 
-------------------------------------------------------------------------
-
-# Formato 1: Lista detallada
-
-## Defecto PERF-01 --- Incumplimiento de SLO de latencia bajo Load
-
--   Capa afectada: Aplicación / Base de datos\
--   Escenario: Load Test (200 VUs)\
--   SLO definido: p95 \< 300 ms\
--   Resultado esperado: Cumplimiento del SLO bajo carga nominal.\
--   Resultado obtenido: p95 = 612 ms
+### Descripción
+Al superar ~400 VUs concurrentes, el p95 de `http_req_duration` pasa de ~280 ms (baseline) a más de 1200 ms, y aparecen errores `Connection is not available, request timed out after 30000ms` en los logs del servicio.
 
 ### Evidencia
+- Reporte: `perf/results/stress-report/`
+- Métrica: `http_req_duration{p95}` salta de 280 ms → 1340 ms entre las etapas de 200 VUs y 400 VUs.
+- `http_req_failed` pasa de 0.3% a 4.8% en la misma transición.
 
-http_req_duration: avg=402ms\
-p(95)=612ms\
-p(99)=890ms
-
-### Impacto
-
-Incumplimiento del objetivo de nivel de servicio bajo carga esperada.
+### Pasos para reproducir
+1. Ejecutar `k6 run -e SCENARIO=stress perf/scripts/register_voter_k6.js`.
+2. Observar las métricas por etapa (200, 400, 600 VUs) en el reporte HTML.
+3. Confirmar errores de pool en logs de la aplicación (`HikariPool-1 - Connection is not available`).
 
 ### Causa probable
+Tamaño de pool de conexiones (`maximum-pool-size`) configurado por debajo de la concurrencia real necesaria, sumado a transacciones más largas de lo esperado en `/register`.
 
--   Saturación del pool de conexiones.\
--   Consulta sin índice.
+### Recomendación
+- Aumentar `spring.datasource.hikari.maximum-pool-size` de forma proporcional a los VUs objetivo y a la capacidad de la base de datos.
+- Revisar el tiempo de las transacciones (posible bloqueo o consultas N+1) que retienen conexiones más tiempo del necesario.
+- Re-ejecutar el escenario de estrés tras el ajuste y comparar contra esta línea base.
 
-### Estado
+---
 
-Abierto
+## DEF-002: Incremento de timeouts a partir de 300 VUs
 
-### Prioridad
+**Severidad:** Media
+**Escenario:** Estrés
+**Estado:** Abierto
 
-Alta
-
-------------------------------------------------------------------------
-
-## Defecto PERF-02 --- Error rate elevado bajo Stress
-
--   Capa afectada: Servidor de aplicación\
--   Escenario: Stress Test (600 VUs)\
--   SLO definido: Error rate \< 1%\
--   Resultado obtenido: 3.8%
+### Descripción
+A partir de ~300 VUs concurrentes, una fracción creciente de solicitudes `POST /register` no recibe respuesta dentro del `TIMEOUT_MS` configurado (2000 ms), reportándose como `http_req_failed`.
 
 ### Evidencia
+- `perf/results/stress.json`, etapa de 400 VUs: `http_req_failed.rate ≈ 0.048`.
 
-http_req_failed: 3.8%\
-status=500 detectado
+### Recomendación
+- Correlacionar con DEF-001 (mismo origen probable: agotamiento del pool).
+- Evaluar *circuit breaker* / *bulkhead* para limitar impacto en cascada.
 
-### Impacto
+---
 
-Fallas del sistema bajo carga alta.
+## DEF-003: Posible fuga de memoria leve en soak (2h @ 120 VUs)
 
-### Causa probable
+**Severidad:** Media
+**Escenario:** Soak
+**Estado:** En análisis
 
--   Agotamiento de threads.\
--   Configuración insuficiente.
+### Descripción
+Durante la corrida de resistencia (2 horas a 120 VUs), el heap usado por la JVM muestra una tendencia de crecimiento sostenido entre ciclos de GC, sin retornar completamente al nivel base tras cada *full GC*.
 
-### Estado
+### Evidencia
+- Dashboard de Grafana / JVM metrics: `jvm_memory_used_bytes{area="heap"}` con pendiente positiva sostenida durante las 2 horas.
 
-En progreso
-
-### Prioridad
-
-Crítica
-
-------------------------------------------------------------------------
-
-## Defecto PERF-03 --- Degradación progresiva en Soak Test
-
--   Capa afectada: JVM / Memoria\
--   Escenario: Soak Test (2 horas)\
--   Resultado esperado: Latencia estable\
--   Resultado obtenido: Incremento progresivo de 210ms a 480ms
-
-### Impacto
-
-Posible fuga de memoria o acumulación de recursos.
-
-### Estado
-
-Abierto
-
-### Prioridad
-
-Media
-
-------------------------------------------------------------------------
-
-# Formato 2: Tabla de seguimiento
-
-  ----------------------------------------------------------------------------------
-  ID        Escenario   Resultado Esperado Resultado Obtenido Estado     Prioridad
-  --------- ----------- ------------------ ------------------ ---------- -----------
-  PERF-01   Load        p95 \< 300ms       612ms              Abierto    Alta
-
-  PERF-02   Stress      Error \< 1%        3.8%               En         Crítica
-                                                              progreso   
-
-  PERF-03   Soak        Latencia estable   Degradación        Abierto    Media
-  ----------------------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
-## Convenciones de Estado
-
-Abierto: Defecto identificado sin corrección aplicada.\
-En progreso: En proceso de corrección.\
-Resuelto: Corregido y validado con nuevas pruebas.
-
-------------------------------------------------------------------------
-
-Universidad de La Sabana -- Facultad de Ingeniería\
-Curso: Testing y Validación de Software (2025-1)
+### Recomendación
+- Tomar heap dumps al inicio y al final de la corrida y compararlos (`jmap`/`VisualVM`).
+- Revisar colecciones en memoria (cachés sin TTL, listeners no removidos) en el flujo de `/register`.
+- Repetir el soak después de cualquier corrección y verificar que la pendiente se estabilice.

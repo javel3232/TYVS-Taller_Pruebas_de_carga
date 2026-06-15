@@ -1,32 +1,26 @@
-# Registro de Defectos (Template)
+# Plantilla de Defecto
 
-Este documento sirve como plantilla para documentar defectos encontrados durante la ejecución de pruebas unitarias y deintegración.
+**ID:** DEF-XXX
+**Título:**
+**Severidad:** Alta / Media / Baja
+**Escenario donde se detectó:** Baseline / Carga / Estrés / Spike / Soak
+**Estado:** Abierto / En análisis / Resuelto / Cerrado
 
----
+## Descripción
+Describir el comportamiento observado y el comportamiento esperado.
 
-## Formato 1: Lista detallada (narrativa)
+## Evidencia
+- Ruta al reporte/artefacto (`perf/results/...`)
+- Métricas relevantes (p95, p99, error rate, etc.)
+- Capturas de logs o dashboards
 
-### Defecto XX
+## Pasos para reproducir
+1. ...
+2. ...
+3. ...
 
-- **Caso de prueba**: ...
-- **Entrada**: ...
-- **Resultado esperado**: ...
-- **Resultado obtenido**: ...
-- **Causa probable**: ...
-- **Estado**: Abierto | En progreso | Resuelto
+## Causa probable
+Hipótesis técnica sobre el origen del defecto.
 
----
-
-## Formato 2: Tabla de defectos (bug tracking)
-
-| ID  | Caso de Prueba | Entrada | Resultado Esperado | Resultado Obtenido | Causa Probable | Estado |
-|-----|----------------|---------|--------------------|--------------------|----------------|--------|
-| XX  | ...            | ...     | ...                | ...                | ...            | Abierto |
-
----
-
-## Convenciones de Estado
-
-- **Abierto** → El defecto aún no se corrige.
-- **En progreso** → El defecto está siendo trabajado.
-- **Resuelto** → El defecto fue corregido y validado con pruebas.
+## Recomendación
+Acciones de mitigación o tuning sugeridas, y cómo validarlas.
